@@ -23,7 +23,7 @@ style.textContent = `
   .modal-container { overflow:auto; width:100%; }
   #modal-icon {
     background-color:#004175; font-size:28px; border-radius:100%; width:70px; aspect-ratio:1/1;
-    color:white; position:absolute; bottom:20px; right:20px; cursor:pointer;
+    color:white; position:fixed; bottom:20px; right:20px; cursor:pointer;
     box-shadow:0px 0px 12px #b7b7b8; display:flex; justify-content:center; align-items:center;
   }
   #modal-icon:hover { background-color:#009bff; }
