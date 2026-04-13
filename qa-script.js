@@ -27,7 +27,7 @@ style.textContent = `
     box-shadow:0px 0px 12px #b7b7b8; display:flex; justify-content:center; align-items:center;
   }
   #modal-icon:hover { background-color:#009bff; }
-  #modal { display:none; }
+  #modal { display:none; z-index: 9000; }
   .check  { color:#00a200; font-size:1rem; }
   .cancel { color:#db0100; font-size:1rem; }
   .qa-product-script {
@@ -60,9 +60,11 @@ window.toggleModal = function () {
     const modal = document.getElementById("modal");
     const modalIcon = document.getElementById("modal-icon");
     const isOpening = modal.style.display !== "block";
-
+    
+    document.body.style.overflow = isOpening ? "hidden" : "auto";
     modal.style.display = isOpening ? "block" : "none";
     modalIcon.style.display = isOpening ? "none" : "flex";
+
 
     if (isOpening) runQA();
 };
