@@ -34,7 +34,7 @@ style.textContent = `
     background-color:#dcf0ff; padding:10px; border-radius:10px;
     display:flex; flex-direction:column; margin-bottom:10px;
   }
-  .navbar{
+  .navbar {
     display: flex;
     justify-content: flex-start;
     gap: 10px;
@@ -42,7 +42,7 @@ style.textContent = `
     margin: 10px;
     width: 100%;
   }
-  button{
+  button {
     background-color: #004175;
     color: white;
     padding: 10px 20px;
@@ -51,27 +51,25 @@ style.textContent = `
     border: none;
     cursor: pointer;
   }
-  button:hover {
-    background-color: #009bff;
-  }
+  button:hover { background-color: #009bff; }
   .row {
-      width: 100%;
-      display: flex;
-      gap: 1;
+    width: 100%;
+    display: flex;
+    gap: 1;
   }
   .row:hover {
-      background-color: #004175;
-      color: white;
-      cursor: pointer;
+    background-color: #004175;
+    color: white;
+    cursor: pointer;
   }
   .column {
-      flex-basis: 50%;
-      flex-grow: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+    flex-basis: 50%;
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
-  `;
+`;
 document.head.appendChild(style);
 
 // ========== INJECT MODAL HTML ==========
@@ -82,10 +80,11 @@ wrapper.innerHTML = `
   </div>
   <div id="modal" class="modal-background">
     <section class="modal-body">
-      <div id="toast" style="visibility:hidden; position:fixed; bottom:80px; left:50%; transform: translate(-50%,-50%); background:#004175; color:white; padding:8px 16px; border-radius:8px; font-size:14px; z-index:9999;">Copied!</div>      <span class="material-symbols-outlined modal-minimize" onclick="toggleModal()">collapse_content</span>
+      <div id="toast" style="visibility:hidden; position:fixed; bottom:80px; left:50%; transform:translate(-50%,-50%); background:#004175; color:white; padding:8px 16px; border-radius:8px; font-size:14px; z-index:9999;">Copied!</div>
+      <span class="material-symbols-outlined modal-minimize" onclick="toggleModal()">collapse_content</span>
       <img src="https://cdn.shopify.com/s/files/1/0014/0158/5725/files/NativePath_Logo.webp?v=1762959581" alt="NativePath Logo" class="np-image">
       <h3>QA Toolkit</h3>
-      <div class="navbar" ><button onclick="runQA()">Scripts</button><button onclick="displayTokens()">Tokens</button><button onclick="displayNpData()">np_data</button></div>
+      <div class="navbar"><button onclick="runQA()">Scripts</button><button onclick="displayTokens()">Tokens</button><button onclick="displayNpData()">np_data</button></div>
       <hr class="divider">
       <div class="modal-container"></div>
     </section>
@@ -95,64 +94,43 @@ document.body.appendChild(wrapper);
 
 let tokenFilter = "";
 
-  // Helpers
-  const icon = (pass) => `<span class="material-symbols-outlined ${pass ? "check" : "cancel"}">${pass ? "check_circle" : "cancel"}</span>`;
-  const field = (label, value) => {
-    const ok = value != null && value !== "" && value !== "—";
-    return `<div>${icon(ok)} <strong>${label}:</strong> ${ok ? value : "—"}</div>`;
+// ========== HELPERS ==========
+const icon = (pass) => `<span class="material-symbols-outlined ${pass ? "check" : "cancel"}">${pass ? "check_circle" : "cancel"}</span>`;
+const field = (label, value) => {
+  const ok = value != null && value !== "" && value !== "—";
+  return `<div>${icon(ok)} <strong>${label}:</strong> ${ok ? value : "—"}</div>`;
 };
-  const row = (columns) => {
-      return `<div class="row">${columns.join("")}</div>`
-  }
-  const column = (value) => {
-  return `<div class="column">${value}</div>`
-}
-  
-  const block = (rows) => `<div class="qa-product-script">${rows.join("")}</div>`;
+const row = (columns) => `<div class="row">${columns.join("")}</div>`;
+const column = (value) => `<div class="column">${value}</div>`;
+const block = (rows) => `<div class="qa-product-script">${rows.join("")}</div>`;
 
-// ========== TOGGLE + RUN QA ON OPEN ==========
+// ========== TOGGLE ==========
 window.toggleModal = function () {
-    const modal = document.getElementById("modal");
-    const modalIcon = document.getElementById("modal-icon");
-    const isOpening = modal.style.display !== "block";
-    
-    document.body.style.overflow = isOpening ? "hidden" : "auto";
-    modal.style.display = isOpening ? "block" : "none";
-    modalIcon.style.display = isOpening ? "none" : "flex";
+  const modal = document.getElementById("modal");
+  const modalIcon = document.getElementById("modal-icon");
+  const isOpening = modal.style.display !== "block";
 
+  document.body.style.overflow = isOpening ? "hidden" : "auto";
+  modal.style.display = isOpening ? "block" : "none";
+  modalIcon.style.display = isOpening ? "none" : "flex";
 
-    if (isOpening) runQA();
+  if (isOpening) runQA();
 };
 
-// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
-// Replaces the existing runQA() in qa-script.js
-// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
-
-// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
-// Replaces the existing runQA() in qa-script.js
-// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
-
-// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
-// Replaces the existing runQA() in qa-script.js
-// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
-
+// ========== QA ==========
 async function runQA() {
   const container = document.querySelector(".modal-container");
   container.innerHTML = `<p>Running checks...</p>`;
 
   await new Promise(r => setTimeout(r, 500));
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RAW MATERIAL
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Raw material ─────────────────────────────────────────────────────────
   const scripts = [...document.scripts];
   const inline = scripts.filter(s => !s.src).map(s => s.textContent || "").join(" ");
   const imgs = [...document.images];
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PANEL HELPER
-  // Green header = all required checks pass. Red = one or more missing.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Panel helper ─────────────────────────────────────────────────────────
+  // Blue header = all required checks pass. Red = one or more missing.
   function panel(title, rows, allPass) {
     const color = allPass ? "#004175" : "#8b0000";
     const status = allPass ? "check_circle" : "cancel";
@@ -162,9 +140,7 @@ async function runQA() {
                     <span class="material-symbols-outlined" style="font-size:18px;color:white;">${status}</span>
                     <span style="color:white;font-weight:600;font-size:13px;letter-spacing:0.03em;">${title}</span>
                 </div>
-                <div style="padding:12px 14px;">
-                    ${rows.join("")}
-                </div>
+                <div style="padding:12px 14px;">${rows.join("")}</div>
             </div>`;
   }
 
@@ -174,13 +150,14 @@ async function runQA() {
 
   // =========================================================================
   // LEGACY SYSTEM
-  // Checks for raw pasted inline code — old manual footer standard
+  // Detects raw pasted inline code — old manual footer standard
+  // All checks via inline script scanning
   // =========================================================================
 
   // Klaviyo SDK
   const leg_hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
 
-  // Klaviyo events — must have klaviyo.push(["track" AND the event name
+  // Klaviyo events — klaviyo.push(["track" must be present alongside event name
   const leg_hasViewedSales = inline.includes('klaviyo.push(["track"') && inline.includes('"Viewed Sales Page"');
   const leg_hasViewedCO = inline.includes('klaviyo.push(["track"') && inline.includes('"Viewed Checkout Page"');
 
@@ -234,26 +211,27 @@ async function runQA() {
 
   // =========================================================================
   // NEW SYSTEM
-  // Checks for function-based footer calls + manual payload object + np_data
+  // Detects function-based footer via window flags set by loadKlaviyoPayload()
+  // No inline string scanning — flags are only set when the function is called
   // =========================================================================
 
-  // Klaviyo SDK — same tag, different detection context
+  // Klaviyo SDK — same tag
   const new_hasKlaviyoSDK = leg_hasKlaviyoSDK;
 
-  // loadKlaviyoPayload() called in footer
-  const new_hasKlaviyoCall = inline.includes("loadKlaviyoPayload(");
+  // loadKlaviyoPayload() sets window.__klaviyoPayloadCalled = true when called
+  // and stores the payload in window.__klaviyoPayload
+  const new_hasKlaviyoCall = !!window.__klaviyoPayloadCalled;
+  const kp = window.__klaviyoPayload || {};
 
-  // Manual payload fields inside loadKlaviyoPayload({...})
-  const new_klavBlock = inline.match(/loadKlaviyoPayload\s*\(\s*\{([\s\S]*?)\}\s*\)/)?.[1] || "";
-  const new_ProductTitle = new_klavBlock.match(/["']?ProductTitle["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
-  const new_ProductCat = new_klavBlock.match(/["']?ProductCategory["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
-  const new_ProductSubCat = new_klavBlock.match(/["']?ProductCategorySub["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
-  const new_ProductImage = new_klavBlock.match(/["']?ProductImage["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
-  const new_ProductDiscount = new_klavBlock.match(/["']?ProductDiscount["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
-  const new_EventNotes = new_klavBlock.match(/["']?EventNotes["']?\s*:\s*["']([^"']*)['"]/)?.[1] ?? null;
-  const new_MessageCopy = new_klavBlock.match(/["']?MessageCopy["']?\s*:\s*["']([^"']*)['"]/)?.[1] ?? null;
+  const new_ProductTitle = kp.ProductTitle || null;
+  const new_ProductCat = kp.ProductCategory || null;
+  const new_ProductSubCat = kp.ProductCategorySub || null;
+  const new_ProductImage = kp.ProductImage || null;
+  const new_ProductDiscount = kp.ProductDiscount || null;
+  const new_EventNotes = kp.EventNotes ?? null;
+  const new_MessageCopy = kp.MessageCopy ?? null;
 
-  // np_data
+  // np_data — still in flux, display whatever product fields exist
   const hasNpData = !!window.np_data;
   let np_products = [];
   let np_page_data = {};
@@ -264,7 +242,6 @@ async function runQA() {
       .filter(Boolean);
   } catch (e) { console.log(e); }
 
-  // np_data product rows — field names not yet locked, display whatever exists
   const npProductRows = np_products.length > 0
     ? Object.entries(np_products[0]).map(([key, val]) => {
       if (key.toLowerCase().includes("image") && typeof val === "string" && val.startsWith("http")) {
@@ -276,15 +253,15 @@ async function runQA() {
 
   // Attentive
   const new_hasAttentiveSDK = leg_hasAttentiveSDK;
-  const new_hasAttentiveCall = inline.includes("loadAttentivePayload(");
+  const new_hasAttentiveCall = !!window.__attentivePayloadCalled;
 
-  // New pass = function calls present
+  // New pass = SDK + klaviyo function was called
   const new_allPass = new_hasKlaviyoSDK && new_hasKlaviyoCall;
 
   const newRows = [
     subheading("Klaviyo"),
     field("SDK", new_hasKlaviyoSDK ? "Loaded" : null),
-    field("loadKlaviyoPayload()", new_hasKlaviyoCall ? "Found" : null),
+    field("loadKlaviyoPayload()", new_hasKlaviyoCall ? "Called" : null),
     divider,
     sublabel("Manual Payload"),
     field("ProductTitle", new_ProductTitle),
@@ -300,7 +277,7 @@ async function runQA() {
     divider,
     subheading("Attentive"),
     field("SDK", new_hasAttentiveSDK ? "Loaded" : null),
-    field("loadAttentivePayload()", new_hasAttentiveCall ? "Found" : null),
+    field("loadAttentivePayload()", new_hasAttentiveCall ? "Called" : null),
     `<div style="font-size:11px;color:#888;margin-top:6px;">Attentive payload fields coming soon</div>`,
   ];
 
@@ -328,6 +305,7 @@ async function runQA() {
     panel("OTHER SCRIPTS", othersRows, othersAnyPass);
 }
 
+// ========== TOKENS ==========
 window.displayTokens = async function () {
   try {
     const container = document.querySelector(".modal-container");
@@ -339,17 +317,14 @@ window.displayTokens = async function () {
         String(value).toLowerCase().includes(filter.toLowerCase())
       );
       return block(
-        entries.map(([key, value]) => value ? row([
-          column(key),
-          column(value)
-        ]) : null).filter(Boolean)
+        entries.map(([key, value]) => value ? row([column(key), column(value)]) : null).filter(Boolean)
       );
     };
 
     container.innerHTML = `
-            <input id="token-search" type="text" placeholder="Search tokens..." value="${tokenFilter}" style="width:100%; padding:8px; margin-bottom:10px; border-radius:8px; border:1px solid #004175; box-sizing:border-box; font-size:14px;">
-            <div id="token-results"></div>
-        `;
+            <input id="token-search" type="text" placeholder="Search tokens..." value="${tokenFilter}"
+                style="width:100%; padding:8px; margin-bottom:10px; border-radius:8px; border:1px solid #004175; box-sizing:border-box; font-size:14px;">
+            <div id="token-results"></div>`;
 
     document.getElementById("token-results").innerHTML = render(tokenFilter);
 
@@ -375,8 +350,9 @@ window.displayTokens = async function () {
     });
 
   } catch (e) { console.log(e, "Error fetching tokenList"); }
-}
+};
 
+// ========== NP_DATA ==========
 async function displayNpData() {
   const container = document.querySelector(".modal-container");
   if (!window.np_data) {
@@ -394,12 +370,10 @@ async function displayNpData() {
           : value
       )])
     )
-  )}
-    `;
+  )}`;
 
-  container.innerHTML = `
-        ${renderSection("GLOBAL", np_data.global)}
-        ${renderSection("PRODUCTS", np_data.products)}
-        ${renderSection("PROMOS", np_data.promos)}
-    `;
+  container.innerHTML =
+    renderSection("GLOBAL", np_data.global) +
+    renderSection("PRODUCTS", np_data.products) +
+    renderSection("PROMOS", np_data.promos);
 }
