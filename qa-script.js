@@ -132,54 +132,181 @@ window.toggleModal = function () {
 // Replaces the existing runQA() in qa-script.js
 // All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
 
+// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
+// Replaces the existing runQA() in qa-script.js
+// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
+
 async function runQA() {
   const container = document.querySelector(".modal-container");
   container.innerHTML = `<p>Running checks...</p>`;
 
   await new Promise(r => setTimeout(r, 500));
 
-  // ── Source detection ──────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // RAW MATERIAL
+  // ─────────────────────────────────────────────────────────────────────────
   const scripts = [...document.scripts];
   const inline = scripts.filter(s => !s.src).map(s => s.textContent || "").join(" ");
+  const imgs = [...document.images];
 
-  // Legacy signals: raw klaviyo.push() pasted inline in the footer
-  const hasLegacyKlaviyoPush = inline.includes('klaviyo.push(["track"');
-  const hasLegacyViewedSales = inline.includes('"Viewed Sales Page"');
-  const hasLegacyViewedCO = inline.includes('"Viewed Checkout Page"');
+  // ─────────────────────────────────────────────────────────────────────────
+  // PANEL HELPER
+  // Green header = all required checks pass. Red = one or more missing.
+  // ─────────────────────────────────────────────────────────────────────────
+  function panel(title, rows, allPass) {
+    const color = allPass ? "#004175" : "#8b0000";
+    const status = allPass ? "check_circle" : "cancel";
+    return `
+            <div style="border:1.5px solid ${color};border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div style="background:${color};padding:8px 14px;display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;color:white;">${status}</span>
+                    <span style="color:white;font-weight:600;font-size:13px;letter-spacing:0.03em;">${title}</span>
+                </div>
+                <div style="padding:12px 14px;">
+                    ${rows.join("")}
+                </div>
+            </div>`;
+  }
 
-  // New signals: loadKlaviyoPayload() CALLED (not just defined) in the footer
-  // The function is defined in the global header so its mere existence means nothing.
-  const hasNewFooterCall = inline.includes("loadKlaviyoPayload(");
-  const hasNewAttentiveCall = inline.includes("loadAttentivePayload(");
+  const divider = `<hr style="border:none;border-top:1px solid #cce4f7;margin:10px 0;">`;
+  const subheading = (label) => `<div style="font-weight:600;font-size:12px;color:#004175;margin:8px 0 4px;text-transform:uppercase;letter-spacing:0.05em;">${label}</div>`;
+  const sublabel = (label) => `<div style="font-size:11px;font-weight:600;color:#555;margin-bottom:4px;">${label}</div>`;
 
-  // np_data presence = new schema loaded
+  // =========================================================================
+  // LEGACY SYSTEM
+  // Checks for raw pasted inline code — old manual footer standard
+  // =========================================================================
+
+  // Klaviyo SDK
+  const leg_hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
+
+  // Klaviyo events — must have klaviyo.push(["track" AND the event name
+  const leg_hasViewedSales = inline.includes('klaviyo.push(["track"') && inline.includes('"Viewed Sales Page"');
+  const leg_hasViewedCO = inline.includes('klaviyo.push(["track"') && inline.includes('"Viewed Checkout Page"');
+
+  // Klaviyo manual product fields — const declarations in pasted footer
+  const leg_prid = inline.match(/const\s+prid\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  const leg_cat = inline.match(/const\s+product_category\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  const leg_subcat = inline.match(/const\s+product_category_sub\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  const leg_notes = inline.match(/const\s+event_notes\s*=\s*["']([^"']*)['"]/)?.[1] ?? null;
+  const leg_msgcopy = inline.match(/const\s+msg_copy\s*=\s*["']([^"']*)['"]/)?.[1] ?? null;
+
+  // Attentive SDK
+  const leg_hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
+
+  // Attentive productView() call
+  const leg_hasProductView = inline.includes("attentive.analytics.productView(");
+
+  // Attentive manual product fields from pasted inline call
+  const leg_attBlock = inline.match(/attentive\.analytics\.productView\(\s*\{[\s\S]*?\}\s*\)/i)?.[0] || "";
+  const leg_attName = leg_attBlock.match(/name:\s*['"]([^'"]{2,})['"]/i)?.[1] || null;
+  const leg_attCat = leg_attBlock.match(/category:\s*['"]([^'"]+)['"]/i)?.[1] || null;
+  const leg_attPrice = leg_attBlock.match(/value:\s*['"]?([\d.]+)['"]?/i)?.[1] || null;
+  const leg_attCurr = leg_attBlock.match(/currency:\s*['"]([A-Z]{3})['"]/i)?.[1] || null;
+  const leg_attProdId = leg_attBlock.match(/productId:\s*['"]([^'"]+)['"]/i)?.[1] || null;
+  const leg_attVarId = leg_attBlock.match(/productVariantId:\s*['"]([^'"]+)['"]/i)?.[1] || null;
+
+  // Legacy pass = SDK + both events fired
+  const leg_allPass = leg_hasKlaviyoSDK && leg_hasViewedSales && leg_hasViewedCO;
+
+  const legacyRows = [
+    subheading("Klaviyo"),
+    field("SDK", leg_hasKlaviyoSDK ? "Loaded" : null),
+    field("Viewed Sales Page", leg_hasViewedSales ? "Found" : null),
+    field("Viewed Checkout Page", leg_hasViewedCO ? "Found" : null),
+    divider,
+    field("Product (prid)", leg_prid),
+    field("Category", leg_cat),
+    field("Sub-Category", leg_subcat),
+    field("Event Notes", leg_notes !== null ? (leg_notes || "—") : null),
+    field("Message Copy", leg_msgcopy !== null ? (leg_msgcopy || "—") : null),
+    divider,
+    subheading("Attentive"),
+    field("SDK", leg_hasAttentiveSDK ? "Loaded" : null),
+    field("productView()", leg_hasProductView ? "Found" : null),
+    divider,
+    field("Product", leg_attName),
+    field("Product ID", leg_attProdId),
+    field("Variant ID", leg_attVarId),
+    field("Category", leg_attCat),
+    field("Price", leg_attPrice && leg_attCurr ? `$${leg_attPrice} ${leg_attCurr}` : leg_attPrice),
+  ];
+
+  // =========================================================================
+  // NEW SYSTEM
+  // Checks for function-based footer calls + manual payload object + np_data
+  // =========================================================================
+
+  // Klaviyo SDK — same tag, different detection context
+  const new_hasKlaviyoSDK = leg_hasKlaviyoSDK;
+
+  // loadKlaviyoPayload() called in footer
+  const new_hasKlaviyoCall = inline.includes("loadKlaviyoPayload(");
+
+  // Manual payload fields inside loadKlaviyoPayload({...})
+  const new_klavBlock = inline.match(/loadKlaviyoPayload\s*\(\s*\{([\s\S]*?)\}\s*\)/)?.[1] || "";
+  const new_ProductTitle = new_klavBlock.match(/["']?ProductTitle["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
+  const new_ProductCat = new_klavBlock.match(/["']?ProductCategory["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
+  const new_ProductSubCat = new_klavBlock.match(/["']?ProductCategorySub["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
+  const new_ProductImage = new_klavBlock.match(/["']?ProductImage["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
+  const new_ProductDiscount = new_klavBlock.match(/["']?ProductDiscount["']?\s*:\s*["']([^"']+)["']/)?.[1] || null;
+  const new_EventNotes = new_klavBlock.match(/["']?EventNotes["']?\s*:\s*["']([^"']*)['"]/)?.[1] ?? null;
+  const new_MessageCopy = new_klavBlock.match(/["']?MessageCopy["']?\s*:\s*["']([^"']*)['"]/)?.[1] ?? null;
+
+  // np_data
   const hasNpData = !!window.np_data;
-
-  // Page state
-  const isLegacy = hasLegacyKlaviyoPush && !hasNewFooterCall;
-  const isNew = !hasLegacyKlaviyoPush && hasNewFooterCall;
-  const isConflict = hasLegacyKlaviyoPush && hasNewFooterCall;
-  const isUnknown = !hasLegacyKlaviyoPush && !hasNewFooterCall;
-
-  // ── Page data (new schema) ────────────────────────────────────────────────
-  let page_data = {};
-  let products = [];
+  let np_products = [];
+  let np_page_data = {};
   try {
-    page_data = window.np_data?.promos?.[window.__page_id] || {};
-    products = (page_data.promoSku || []).map(sku => window.np_data?.products?.[sku]).filter(Boolean);
+    np_page_data = window.np_data?.promos?.[window.__page_id] || {};
+    np_products = (np_page_data.promoSku || [])
+      .map(sku => window.np_data?.products?.[sku])
+      .filter(Boolean);
   } catch (e) { console.log(e); }
 
-  // ── Legacy product info (regex from inline pasted code) ──────────────────
-  const legacyProduct = inline.match(/const\s+prid\s*=\s*["']([^"']+)["']/)?.[1] || null;
-  const legacyCategory = inline.match(/const\s+product_category\s*=\s*["']([^"']+)["']/)?.[1] || null;
-  const legacySubCat = inline.match(/const\s+product_category_sub\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  // np_data product rows — field names not yet locked, display whatever exists
+  const npProductRows = np_products.length > 0
+    ? Object.entries(np_products[0]).map(([key, val]) => {
+      if (key.toLowerCase().includes("image") && typeof val === "string" && val.startsWith("http")) {
+        return field(key, `<img src="${val}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">`);
+      }
+      return field(key, val != null ? String(val) : null);
+    })
+    : [field("Products", null)];
 
-  // ── SDK checks (same for both worlds) ────────────────────────────────────
-  const hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
-  const hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
+  // Attentive
+  const new_hasAttentiveSDK = leg_hasAttentiveSDK;
+  const new_hasAttentiveCall = inline.includes("loadAttentivePayload(");
 
-  // ── Other scripts ─────────────────────────────────────────────────────────
-  const imgs = [...document.images];
+  // New pass = function calls present
+  const new_allPass = new_hasKlaviyoSDK && new_hasKlaviyoCall;
+
+  const newRows = [
+    subheading("Klaviyo"),
+    field("SDK", new_hasKlaviyoSDK ? "Loaded" : null),
+    field("loadKlaviyoPayload()", new_hasKlaviyoCall ? "Found" : null),
+    divider,
+    sublabel("Manual Payload"),
+    field("ProductTitle", new_ProductTitle),
+    field("ProductCategory", new_ProductCat),
+    field("ProductCategorySub", new_ProductSubCat),
+    field("ProductImage", new_ProductImage),
+    field("ProductDiscount", new_ProductDiscount),
+    field("EventNotes", new_EventNotes !== null ? (new_EventNotes || "—") : null),
+    field("MessageCopy", new_MessageCopy !== null ? (new_MessageCopy || "—") : null),
+    divider,
+    sublabel(`np_data — ${hasNpData ? "Loaded" : "Not found"}`),
+    ...npProductRows,
+    divider,
+    subheading("Attentive"),
+    field("SDK", new_hasAttentiveSDK ? "Loaded" : null),
+    field("loadAttentivePayload()", new_hasAttentiveCall ? "Found" : null),
+    `<div style="font-size:11px;color:#888;margin-top:6px;">Attentive payload fields coming soon</div>`,
+  ];
+
+  // =========================================================================
+  // OTHER SCRIPTS
+  // =========================================================================
   const others = {
     MediaGo: scripts.some(s => /mediago\.io/i.test(s.src)) || typeof window._megoaa !== "undefined",
     Reddit: scripts.some(s => /redditstatic\.com\/ads\/pixel\.js|events\.redditmedia\.com/i.test(s.src)) || typeof window.rdt !== "undefined",
@@ -189,175 +316,16 @@ async function runQA() {
     Outbrain: scripts.some(s => /amplify\.outbrain\.com\/cp\/obtp\.js/i.test(s.src)) || typeof window.obApi !== "undefined",
   };
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // STATUS BANNER
-  // ═════════════════════════════════════════════════════════════════════════
-  let bannerColor, bannerIcon, bannerTitle, bannerSub;
+  const othersRows = Object.entries(others).map(([name, found]) => field(name, found ? "Found" : null));
+  const othersAnyPass = Object.values(others).some(Boolean);
 
-  if (isConflict) {
-    bannerColor = "#ffeaea";
-    bannerIcon = "cancel";
-    bannerTitle = "CONFLICT — Old and new tracking code both detected";
-    bannerSub = "This page may fire Klaviyo events twice.";
-  } else if (isNew) {
-    bannerColor = "#e6f9ee";
-    bannerIcon = "check_circle";
-    bannerTitle = "New tracking code";
-    bannerSub = hasNpData ? "" : "np_data not found.";
-  } else if (isLegacy) {
-    bannerColor = "#fff8e1";
-    bannerIcon = "check_circle";
-    bannerTitle = "Legacy tracking code";
-    bannerSub = "";
-  } else {
-    bannerColor = "#ffeaea";
-    bannerIcon = "cancel";
-    bannerTitle = "No tracking code detected";
-    bannerSub = "";
-  }
-
-  const bannerHTML = `
-        <div style="background:${bannerColor};border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start;">
-            <span class="material-symbols-outlined" style="font-size:22px;color:${isConflict || isUnknown ? '#db0100' : isNew ? '#00a200' : '#b07d00'};flex-shrink:0;margin-top:1px;">${bannerIcon}</span>
-            <div>
-                <div style="font-weight:600;font-size:14px;">${bannerTitle}</div>
-                ${bannerSub ? `<div style="font-size:12px;color:#555;margin-top:3px;">${bannerSub}</div>` : ""}
-            </div>
-        </div>`;
-
-  // ═════════════════════════════════════════════════════════════════════════
-  // KLAVIYO SECTION
-  // ═════════════════════════════════════════════════════════════════════════
-  let klaviyoHTML = `<strong>KLAVIYO</strong><br><br>`;
-
-  // SDK is always the same check
-  klaviyoHTML += block([field("Klaviyo is loaded", hasKlaviyoSDK ? "Yes" : null)]);
-
-  if (isLegacy || isConflict) {
-    // ── Legacy sub-block ──
-    const legacyLabel = isConflict
-      ? `<div style="font-size:11px;font-weight:600;color:#b07d00;margin-bottom:6px;">OLD CODE (pasted inline)</div>`
-      : "";
-    klaviyoHTML += block([
-      legacyLabel,
-      field("Sales page tracking is set up", hasLegacyViewedSales ? "Yes" : null),
-      field("Checkout button tracking is set up", hasLegacyViewedCO ? "Yes" : null),
-      `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
-      field("Product", legacyProduct || null),
-      field("Category", legacyCategory || null),
-      field("Sub-Category", legacySubCat || null),
-    ]);
-  }
-
-  if (isNew || isConflict) {
-    // ── New schema sub-block ──
-    const newLabel = isConflict
-      ? `<div style="font-size:11px;font-weight:600;color:#00622a;margin-bottom:6px;">NEW CODE (function-based)</div>`
-      : "";
-
-    if (products.length > 0) {
-      const p = products[0];
-      klaviyoHTML += block([
-        newLabel,
-        field("Sales page tracking is set up", hasNewFooterCall ? "Yes" : null),
-        field("Checkout button tracking is set up", hasNewFooterCall ? "Yes" : null),
-        `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
-        field("Product", p.productName),
-        field("Category", p.productCategory),
-        field("Sub-Category", p.productCategorySub),
-        field("Image", p.productImage
-          ? `<img src="${p.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">`
-          : null),
-        field("Price", p.retailPrice ? `$${p.retailPrice} ${window.np_data?.global?.currency || ""}` : null),
-      ]);
-    } else {
-      klaviyoHTML += block([
-        newLabel,
-        `<div>${icon(false)} Product info not found in np_data.</div>`,
-      ]);
-    }
-  }
-
-  if (isUnknown) {
-    klaviyoHTML += block([
-      `<div>${icon(false)} No Klaviyo tracking found on this page.</div>`,
-    ]);
-  }
-
-  // ═════════════════════════════════════════════════════════════════════════
-  // ATTENTIVE SECTION
-  // ═════════════════════════════════════════════════════════════════════════
-  let attentiveHTML = `<strong>ATTENTIVE</strong><br><br>`;
-
-  // Legacy attentive: raw productView() call pasted inline
-  const hasLegacyAttentive = inline.includes("attentive.analytics.productView(");
-
-  // Extract legacy attentive product info
-  const attBlock = inline.match(/attentive\.analytics\.productView\(\s*\{[\s\S]*?\}\s*\)/i)?.[0] || "";
-  const attLegacyName = attBlock.match(/name:\s*['"]([^'"]{2,})['"]/i)?.[1] || null;
-  const attLegacyCat = attBlock.match(/category:\s*['"]([^'"]+)['"]/i)?.[1] || null;
-  const attLegacyPrice = attBlock.match(/value:\s*['"]?([\d.]+)['"]?/i)?.[1] || null;
-  const attLegacyCurr = attBlock.match(/currency:\s*['"]([A-Z]{3})['"]/i)?.[1] || null;
-
-  attentiveHTML += block([field("Attentive is loaded", hasAttentiveSDK ? "Yes" : null)]);
-
-  if (hasLegacyAttentive) {
-    const attLegacyLabel = hasNewAttentiveCall
-      ? `<div style="font-size:11px;font-weight:600;color:#b07d00;margin-bottom:6px;">OLD CODE (pasted inline)</div>`
-      : "";
-    attentiveHTML += block([
-      attLegacyLabel,
-      field("Product view is set up", "Yes"),
-      `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
-      field("Product", attLegacyName),
-      field("Category", attLegacyCat),
-      field("Price", attLegacyPrice && attLegacyCurr ? `$${attLegacyPrice} ${attLegacyCurr}` : attLegacyPrice),
-    ]);
-  }
-
-  if (hasNewAttentiveCall) {
-    const attNewLabel = hasLegacyAttentive
-      ? `<div style="font-size:11px;font-weight:600;color:#00622a;margin-bottom:6px;">NEW CODE (function-based)</div>`
-      : "";
-    if (products.length > 0) {
-      const p = products[0];
-      attentiveHTML += block([
-        attNewLabel,
-        field("Product view is set up", "Yes"),
-        `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
-        field("Product", p.productName),
-        field("Category", p.productCategory),
-        field("Price", p.retailPrice ? `$${p.retailPrice} ${window.np_data?.global?.currency || ""}` : null),
-        field("Image", p.productImage
-          ? `<img src="${p.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">`
-          : null),
-      ]);
-    } else {
-      attentiveHTML += block([
-        attNewLabel,
-        `<div>${icon(false)} Product info not found in np_data.</div>`,
-      ]);
-    }
-  }
-
-  if (!hasAttentiveSDK && !hasLegacyAttentive && !hasNewAttentiveCall) {
-    attentiveHTML += block([
-      `<div>${icon(false)} Attentive not detected.</div>`
-    ]);
-  }
-
-  // ═════════════════════════════════════════════════════════════════════════
-  // OTHER SCRIPTS
-  // ═════════════════════════════════════════════════════════════════════════
-  const othersHTML = `
-        <strong>OTHER SCRIPTS</strong><br><br>
-        ${block(Object.entries(others).map(([name, found]) => field(name, found ? "Found" : null)))}
-    `;
-
-  // ═════════════════════════════════════════════════════════════════════════
+  // =========================================================================
   // RENDER
-  // ═════════════════════════════════════════════════════════════════════════
-  container.innerHTML = bannerHTML + klaviyoHTML + attentiveHTML + othersHTML;
+  // =========================================================================
+  container.innerHTML =
+    panel("LEGACY SYSTEM", legacyRows, leg_allPass) +
+    panel("NEW SYSTEM", newRows, new_allPass) +
+    panel("OTHER SCRIPTS", othersRows, othersAnyPass);
 }
 
 window.displayTokens = async function () {
