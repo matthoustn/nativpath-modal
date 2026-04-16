@@ -24,7 +24,7 @@ style.textContent = `
   #modal-icon {
     background-color:#004175; font-size:28px; border-radius:100%; width:70px; aspect-ratio:1/1;
     color:white; position:fixed; bottom:20px; right:20px; cursor:pointer;
-    box-shadow:0px 0px 12px #b7b7b8; display:flex; justify-content:center; align-items:center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15); display:flex; justify-content:center; align-items:center;
   }
   #modal-icon:hover { background-color:#009bff; }
   #modal { display:none; z-index: 9000; }
@@ -34,7 +34,44 @@ style.textContent = `
     background-color:#dcf0ff; padding:10px; border-radius:10px;
     display:flex; flex-direction:column; margin-bottom:10px;
   }
-`;
+  .navbar{
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    align-content: center;
+    margin: 10px;
+    width: 100%;
+  }
+  button{
+    background-color: #004175;
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #009bff;
+  }
+  .row {
+      width: 100%;
+      display: flex;
+      gap: 1;
+  }
+  .row:hover {
+      background-color: #004175;
+      color: white;
+      cursor: pointer;
+  }
+  .column {
+      flex-basis: 50%;
+      flex-grow: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+  }
+  `;
 document.head.appendChild(style);
 
 // ========== INJECT MODAL HTML ==========
@@ -45,15 +82,33 @@ wrapper.innerHTML = `
   </div>
   <div id="modal" class="modal-background">
     <section class="modal-body">
-      <span class="material-symbols-outlined modal-minimize" onclick="toggleModal()">collapse_content</span>
+      <div id="toast" style="visibility:hidden; position:fixed; bottom:80px; left:50%; transform: translate(-50%,-50%); background:#004175; color:white; padding:8px 16px; border-radius:8px; font-size:14px; z-index:9999;">Copied!</div>      <span class="material-symbols-outlined modal-minimize" onclick="toggleModal()">collapse_content</span>
       <img src="https://cdn.shopify.com/s/files/1/0014/0158/5725/files/NativePath_Logo.webp?v=1762959581" alt="NativePath Logo" class="np-image">
-      <h3>QA Testing</h3>
+      <h3>QA Toolkit</h3>
+      <div class="navbar" ><button onclick="runQA()">Scripts</button><button onclick="displayTokens()">Tokens</button><button onclick="displayNpData()">np_data</button></div>
       <hr class="divider">
       <div class="modal-container"></div>
     </section>
   </div>
 `;
 document.body.appendChild(wrapper);
+
+let tokenFilter = "";
+
+  // Helpers
+  const icon = (pass) => `<span class="material-symbols-outlined ${pass ? "check" : "cancel"}">${pass ? "check_circle" : "cancel"}</span>`;
+  const field = (label, value) => {
+    const ok = value != null && value !== "" && value !== "—";
+    return `<div>${icon(ok)} <strong>${label}:</strong> ${ok ? value : "—"}</div>`;
+};
+  const row = (columns) => {
+      return `<div class="row">${columns.join("")}</div>`
+  }
+  const column = (value) => {
+  return `<div class="column">${value}</div>`
+}
+  
+  const block = (rows) => `<div class="qa-product-script">${rows.join("")}</div>`;
 
 // ========== TOGGLE + RUN QA ON OPEN ==========
 window.toggleModal = function () {
@@ -73,23 +128,26 @@ window.toggleModal = function () {
 async function runQA() {
     const container = document.querySelector(".modal-container");
     container.innerHTML = `<p>Running checks...</p>`;
+    window.__page_id = "12345678" //Delete before upload
+    let page_data = {};
+    try { page_data = window.np_data?.promos[__page_id] || {}; console.log("Page ID:", window.__page_id, "NP Data:", window.np_data,"Page Data:", page_data) } catch (e) { console.log(e, "Error fetching page id") }
 
     await new Promise(r => setTimeout(r, 500));
 
     const scripts = [...document.scripts];
     const inline = scripts.filter(s => !s.src).map(s => s.textContent || "").join(" ");
 
-    let products = [];
-    try { products = window.np_data?.global?.products || []; } catch (e) { }
+    let product = {};
+  try { product = window.np_data?.products[page_data.promoSku] || {}; console.log("Products:", product, "Page Data:", page_data)} catch (e) { console.log(e)}
 
     // Checks
     const hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
     const hasViewedSales = inline.includes("Viewed Sales Page");
     const hasViewedCheckout = inline.includes("Viewed Checkout Page");
     const hasKlaviyoPayloadFn = inline.includes("loadKlaviyoPayload");
-    const hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
-    const hasAttentivePayload = inline.includes("loadAttentivePayload");
-    const hasAttentiveCall = inline.includes("attentive.analytics.productView");
+    // const hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
+    // const hasAttentivePayload = inline.includes("loadAttentivePayload");
+    // const hasAttentiveCall = inline.includes("attentive.analytics.productView");
 
     const imgs = [...document.images];
     const others = {
@@ -101,16 +159,7 @@ async function runQA() {
         Outbrain: scripts.some(s => /amplify\.outbrain\.com\/cp\/obtp\.js/i.test(s.src)) || typeof window.obApi !== "undefined",
     };
 
-    // Helpers
-    const icon = (pass) => `<span class="material-symbols-outlined ${pass ? "check" : "cancel"}">${pass ? "check_circle" : "cancel"}</span>`;
-    const field = (label, value) => {
-        const ok = value != null && value !== "" && value !== "—";
-        return `<div>${icon(ok)} <strong>${label}:</strong> ${ok ? value : "—"}</div>`;
-    };
-    const block = (rows) => `<div class="qa-product-script">${rows.join("")}</div>`;
-
     // Klaviyo
-    const kp = products[0];
     const klaviyoHTML = `
     <strong>KLAVIYO ABANDON SDK</strong><br><br>
     ${block([
@@ -119,41 +168,115 @@ async function runQA() {
         field("Viewed Sales Page", hasViewedSales ? "Found" : null),
         field("Viewed Checkout Page", hasViewedCheckout ? "Found" : null),
     ])}
-    ${kp ? block([
-        field("Product", kp.productName),
-        field("Category", kp.productCategory),
-        field("Sub-Category", kp.productCategorySub),
-        field("Acq Category", kp.productCategoryAcq),
-        field("Image", kp.productImage ? `<img src="${kp.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">` : null),
-        field("Retail Price", kp.retailPrice ? `${kp.retailPrice.value} ${kp.retailPrice.currency}` : null),
-    ]) : block([`<div>${icon(false)} np_data.global.products not found</div>`])}
+    ${product ? block([
+        field("Product", product.productName), //Comes from Product
+        field("Category", product.productCategory), //Comes from Product
+        field("Sub-Category", product.productCategorySub), //Comes from Product
+        field("Image", product.productImage ? `<img src="${product.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">` : null), //Comes from Product
+        field("Retail Price", product.retailPrice ? `${product.retailPrice} ${np_data.global.currency}` : null), //Comes from Product
+    ]) : block([`<div>${icon(false)} np_data.product not found</div>`])}
   `;
 
-    // Attentive
-    const attentiveHTML = `
-    <strong>ATTENTIVE SDK</strong><br><br>
-    ${block([
-        field("SDK", hasAttentiveSDK ? "Found" : null),
-        field("loadAttentivePayload()", hasAttentivePayload ? "Found" : null),
-        field("productView() Call", hasAttentiveCall ? "Found" : null),
-    ])}
-    ${products.length
-            ? products.map(p => block([
-                field("Product", p.productName),
-                field("Product ID", p.productId),
-                field("Variant ID", p.productVariantId),
-                field("Category", p.productCategory),
-                field("Price", p.retailPrice ? `${p.retailPrice.value} ${p.retailPrice.currency}` : null),
-            ])).join("")
-            : block([`<div>${icon(false)} np_data.global.products not found</div>`])
-        }
-  `;
-
+  //   // Attentive
+  //   const attentiveHTML = `
+  //   <strong>ATTENTIVE SDK</strong><br><br>
+  //   ${block([
+  //       field("SDK", hasAttentiveSDK ? "Found" : null),
+  //       field("loadAttentivePayload()", hasAttentivePayload ? "Found" : null),
+  //       field("productView() Call", hasAttentiveCall ? "Found" : null),
+  //   ])}
+  //   ${Object.keys(products).length
+  //     ? Object.values(products).map(p => block([
+  //               field("Product", p.productName),
+  //               field("Product ID", p.productId),
+  //               field("Variant ID", p.productVariantId),
+  //               field("Category", p.productCategory),
+  //               field("Price", p.retailPrice ? `${p.retailPrice.value} ${p.retailPrice.currency}` : null),
+  //           ])).join("")
+  //           : block([`<div>${icon(false)} np_data.global.products not found</div>`])
+  //       }
+  // `;
     // Other scripts
     const othersHTML = `
     <strong>OTHER SCRIPTS (EXT)</strong><br><br>
     ${block(Object.entries(others).map(([name, found]) => field(name, found ? "Found" : null)))}
   `;
 
-    container.innerHTML = klaviyoHTML + attentiveHTML + othersHTML;
+  container.innerHTML = klaviyoHTML + othersHTML;//+ attentiveHTML + othersHTML;
+}
+
+window.displayTokens = async function () {
+  try {
+    const container = document.querySelector(".modal-container");
+    if (!window.tokenList) return;
+
+    const render = (filter = "") => {
+      const entries = Object.entries(tokenList).filter(([key, value]) =>
+        key.toLowerCase().includes(filter.toLowerCase()) ||
+        String(value).toLowerCase().includes(filter.toLowerCase())
+      );
+      return block(
+        entries.map(([key, value]) => value ? row([
+          column(key),
+          column(value)
+        ]) : null).filter(Boolean)
+      );
+    };
+
+    container.innerHTML = `
+            <input id="token-search" type="text" placeholder="Search tokens..." value="${tokenFilter}" style="width:100%; padding:8px; margin-bottom:10px; border-radius:8px; border:1px solid #004175; box-sizing:border-box; font-size:14px;">
+            <div id="token-results"></div>
+        `;
+
+    document.getElementById("token-results").innerHTML = render(tokenFilter);
+
+    document.getElementById("token-search").addEventListener("input", (e) => {
+      tokenFilter = e.target.value;
+      document.getElementById("token-results").innerHTML = render(tokenFilter);
+    });
+
+    document.getElementById("token-results").addEventListener("click", (e) => {
+      const el = e.target.closest(".row");
+      if (!el) return;
+      const key = el.querySelector(".column")?.innerText;
+      if (!key) return;
+      navigator.clipboard.writeText(key)
+        .then(() => {
+          el.style.color = "#00a200";
+          setTimeout(() => el.style.color = "", 1500);
+          const toast = document.getElementById("toast");
+          toast.style.visibility = "visible";
+          setTimeout(() => toast.style.visibility = "hidden", 1500);
+        })
+        .catch((e) => console.log("Clipboard error:", e));
+    });
+
+  } catch (e) { console.log(e, "Error fetching tokenList"); }
+}
+
+async function displayNpData() {
+  const container = document.querySelector(".modal-container");
+  if (!window.np_data) {
+    container.innerHTML = `<p>np_data not found</p>`;
+    return;
+  }
+
+  const renderSection = (label, data) => `
+        <strong>${label}</strong><br><br>
+        ${block(
+    Object.entries(data).map(([key, value]) =>
+      row([column(`<strong>${key}</strong>`), column(
+        typeof value === "object" && value !== null
+          ? `<pre style="margin:0; font-size:11px; white-space:pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`
+          : value
+      )])
+    )
+  )}
+    `;
+
+  container.innerHTML = `
+        ${renderSection("GLOBAL", np_data.global)}
+        ${renderSection("PRODUCTS", np_data.products)}
+        ${renderSection("PROMOS", np_data.promos)}
+    `;
 }

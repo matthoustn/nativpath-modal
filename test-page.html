@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NativeModal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Miranda+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+    </style>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=cancel,check_circle,collapse_content,handyman" />
+    <script>
+    window.np_data = {
+        global: {
+            companyAddress: "", // Company mailing address, used in footer and legal sections
+            csPhone: "1-800-819-2993", // Customer service phone number
+            csHours: "8:00 AM - 5:00 PM Central Time", // Customer service hours of operation
+            csWorkDays: "Monday - Friday", // Customer service days of operation
+            csEmail: "cs@nativepath.com", // Customer service email address
+            shipTime: "7-10 Business Days", // Default shipping time estimate displayed on page
+            guarantee: "365-Day Money-Back Guarantee", // Guarantee text used in trust sections
+            currency: "USD" // Global currency code; all numeric price fields are in this currency and should be formatted by the token system
+        },
+        products: {
+            // Keyed by internal SKU for O(1) lookup
+            // Products here are the "master" product records — shared across all promos
+            // Offer-level productSku references back to these keys
+            "10-00019": {
+                productName: "Krill", // Display name of the product
+                unitSingular: "Bag", // Singular unit label e.g. "Bag", "Bottle", "Jar"
+                unitPlural: "Bags", // Plural unit label e.g. "Bags", "Bottles", "Jars"
+                servingSize: "2 scoops", // Serving size as labeled on the product (freeform string, varies by product)
+                servingsPerContainer: 56, // Total number of servings per container
+                currentStock: 70326, // Current inventory count, used for stock urgency messaging
+                productId: "1770897276989", // Shopify product ID — kept as string to avoid integer overflow
+                productVariantId: "1770897276989", // Shopify variant ID — kept as string to avoid integer overflow
+                productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_otp_1.webp?v=1775230338", // Default product image; individual offers may override this with quantity-specific images
+                productCategory: "supplements", // Top-level category, used for Klaviyo and analytics
+                productCategorySub: "krill", // Sub-category for more specific segmentation
+                productCategoryAcq: "krill", // Acquisition-specific category label used by the ACQ department
+                retailPrice: 37.99, // Full retail price for a single unit; used for strikethrough pricing and savings calculations
+                totalReviews: 50000, // Total number of reviews displayed in social proof sections
+                reviewRating: 4.5, // Average review rating out of 5
+                productDescription: "", // Short product description used in hero or product detail sections
+                format: "softgel", // Physical format of the product e.g. "softgel", "powder", "gummy", "capsule", "liquid"
+                benefits: [
+                    // Array of benefit objects; each benefit has a label and icon
+                    // Kept as objects rather than plain strings so each benefit can be tokenized independently (label + icon)
+                    { label: "Heart Health", icon: "https://cdn.shopify.com/..." },
+                    { label: "Joint Health", icon: "https://cdn.shopify.com/..." },
+                    { label: "Anti-Inflammatory", icon: "https://cdn.shopify.com/..." }
+                ],
+                ingredients: "Krill Oil, Phospholipids, Astaxanthin.", // Active/primary ingredients as listed on the label
+                otherIngredients: "Krill Oil, Gelatin, Glycerol, Water.", // Inactive/other ingredients as listed on the label
+                amountSold: "", // Total units sold, used for social proof messaging e.g. "Over 1M sold"
+                attribution: "", // Attribution or disclaimer text required on page e.g. regulatory or legal copy
+                allergens: "Crustacean Shellfish (Krill).", // Allergen warning as listed on the label
+                containsNoAdded: "Milk, tree nuts, wheat, peanuts, or soy. Made on equipment that also processes milk, eggs, fish, tree nuts, and soy.", // "Contains no added" disclaimer as listed on the label
+                howToUse: "For adults, take one or two (1-2) softgels daily, preferably with a meal. (If taking for health maintenance, take 1 softgel daily. If taking for relief from specific health issue take 2 softgels daily.)" // Usage directions as listed on the label
+            },
+            "10-00045": {
+                // Non-supplement product — only has fields relevant to a physical good
+                // Fields like servingSize, ingredients, allergens etc. are omitted as they don't apply
+                productName: "Shaker Bottle",
+                unitSingular: "Bottle",
+                unitPlural: "Bottles",
+                productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Untitleddesign-2024-02-23T083448.878.png?v=1708695329",
+                retailPrice: 19.99
+            }
+        },
+        promos: {
+            // Keyed by promo ID for O(1) lookup
+            // Each promo represents a unique page/campaign configuration
+            "12345678": {
+                pageType: "Sales Page", // Page type identifier set in AirTable e.g. "Sales Page", "Content Page", "Interstitial"
+                channel: "SMS", // Traffic channel this promo is targeted to e.g. "SMS", "Email", "Paid"
+                saleName: "Spring Sale", // Internal sale name for reference
+                maxPercentOff: 48, // Maximum percent off across all offers — used for headline/hero marketing copy only, not offer-level discounts
+                maxDollarOff: 32, // Maximum dollar off across all offers — used for headline/hero marketing copy only, not offer-level discounts
+                promoExpiration: "2025-04-20T23:59:59Z", // ISO 8601 expiration datetime for countdown timers; use timerDuration instead for evergreen/repeating timers
+                promoSku: "10-00019", // References np_data.products key; may differ from sub to support variant-level differences
+                moneyBackImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/365_badge_mb.png?v=1754939951", // Money-back guarantee badge image
+                offers: [
+                    // Array of offer objects, each representing a quantity tier
+                    // Offers contain both otp (one-time purchase) and sub (subscription) options
+                    // productImage is duplicated at the offer level intentionally — quantity-specific images
+                    // differ from the master product image (e.g. 1 bag vs 3 bag vs 6 bag shot)
+                    // productSku at the offer level references np_data.products and may differ per otp/sub
+                    // to support variant-level differences e.g. flavors
+                    {
+                        label: "1 Bag", // Display label for this quantity tier
+                        badge: "", // Optional badge text shown on the offer card e.g. "MOST POPULAR", "BEST VALUE"
+                        quantity: 1, // Number of units in this offer tier
+                        otp: {
+                            price: 65, // Per-unit price for one-time purchase
+                            pricePerServing: 1.16, // Price per serving at this offer's price; set manually in AirTable
+                            dollarOff: 0, // Dollar savings vs retail for this specific offer; 0 if no discount
+                            percentOff: 0, // Percent savings vs retail for this specific offer; 0 if no discount
+                            shipping: "FREE SHIPPING", // Shipping label for this offer e.g. "FREE SHIPPING", "$9 SHIPPING"
+                            totalRetailPrice: 65, // Total retail price for all units at retail price (quantity × retailPrice)
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_otp_1.webp?v=1775230338", // Quantity-specific product image for this offer
+                            checkoutLink: "...", // Direct checkout URL for this offer
+                            gifts: [], // Array of free gift SKUs included with this offer e.g. [{ sku: "10-00045", quantity: 1 }]
+                            ctaText: "Add To Cart" // Call to action button text
+                        },
+                        sub: {
+                            price: 60, // Per-unit price for subscription
+                            pricePerServing: 1.07, // Price per serving at subscription price; set manually in AirTable
+                            dollarOff: 7.99, // Dollar savings vs otp price for subscribing
+                            percentOff: 10, // Percent savings vs otp price for subscribing
+                            shipping: "FREE SHIPPING",
+                            totalRetailPrice: 60, // Total retail price for all units at retail price (quantity × retailPrice)
+                            frequency: "every month", // Subscription billing frequency e.g. "every month", "every 3 months"
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_ss.png?v=1775230172", // Subscription-specific product image, may differ from otp image
+                            checkoutLink: "...",
+                            gifts: [],
+                            ctaText: "Add To Cart"
+                        }
+                    },
+                    {
+                        label: "3 Bags",
+                        badge: "",
+                        quantity: 3,
+                        otp: {
+                            price: 39,
+                            pricePerServing: 0.87,
+                            dollarOff: 86.97,
+                            percentOff: 30,
+                            shipping: "FREE SHIPPING",
+                            totalRetailPrice: 113.97,
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill30s_Set_3.png?v=1775230172",
+                            checkoutLink: "...",
+                            gifts: [
+                                { sku: "10-00045", quantity: 1 }
+                            ],
+                            ctaText: "Add To Cart"
+                        },
+                        sub: {
+                            price: 35,
+                            pricePerServing: 0.78,
+                            dollarOff: 98.97,
+                            percentOff: 30,
+                            shipping: "FREE SHIPPING",
+                            totalRetailPrice: 105,
+                            frequency: "every 3 months",
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_3_ss.png?v=1775230171",
+                            checkoutLink: "...",
+                            gifts: [
+                                { sku: "10-00045", quantity: 1 }
+                            ],
+                            ctaText: "Add To Cart"
+                        }
+                    },
+                    {
+                        label: "6 Bags",
+                        badge: "MOST POPULAR",
+                        quantity: 6,
+                        otp: {
+                            price: 32,
+                            pricePerServing: 0.70,
+                            dollarOff: 215.94,
+                            percentOff: 30,
+                            shipping: "FREE SHIPPING",
+                            totalRetailPrice: 227.94,
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_6_otp.png?v=1775230172",
+                            checkoutLink: "...",
+                            gifts: [
+                                { sku: "10-00045", quantity: 1 },
+                                { sku: "10-00019", quantity: 1 }
+                            ],
+                            ctaText: "Add To Cart"
+                        },
+                        sub: {
+                            price: 28,
+                            pricePerServing: 0.62,
+                            dollarOff: 251.94,
+                            percentOff: 30,
+                            shipping: "FREE SHIPPING",
+                            totalRetailPrice: 227.94,
+                            frequency: "every 6 months",
+                            productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_6_ss_1.png?v=1775230172",
+                            checkoutLink: "...",
+                            gifts: [
+                                { sku: "10-00045", quantity: 1 }
+                            ],
+                            ctaText: "Add To Cart"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    window.tokenList = {
+        // ===== GLOBAL =====
+        "{{companyaddress}}": "",
+        "{{csphone}}": "1-800-819-2993",
+        "{{cshours}}": "8:00 AM - 5:00 PM Central Time",
+        "{{csworkdays}}": "Monday - Friday",
+        "{{csemail}}": "cs@nativepath.com",
+        "{{shiptime}}": "7-10 Business Days",
+        "{{guarantee}}": "365-Day Money-Back Guarantee",
+        "{{currency}}": "USD",
+
+        // ===== PRODUCT =====
+        "{{productname}}": "Krill",
+        "{{unitsingular}}": "Bag",
+        "{{unitplural}}": "Bags",
+        "{{servingsize}}": "2 scoops",
+        "{{servingspercontainer}}": 56,
+        "{{currentstock}}": 70326,
+        "{{productimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_otp_1.webp?v=1775230338",
+        "{{retailprice}}": 37.99,
+        "{{totalreviews}}": 50000,
+        "{{reviewrating}}": 4.5,
+        "{{productdescription}}": "",
+        "{{format}}": "softgel",
+        "{{ingredients}}": "Krill Oil, Phospholipids, Astaxanthin.",
+        "{{otheringredients}}": "Krill Oil, Gelatin, Glycerol, Water.",
+        "{{amountsold}}": "",
+        "{{attribution}}": "",
+        "{{allergens}}": "Crustacean Shellfish (Krill).",
+        "{{containsnoadded}}": "Milk, tree nuts, wheat, peanuts, or soy. Made on equipment that also processes milk, eggs, fish, tree nuts, and soy.",
+        "{{howtouse}}": "For adults, take one or two (1-2) softgels daily, preferably with a meal.",
+
+        // Benefits
+        "{{benefit1label}}": "Heart Health",
+        "{{benefit1icon}}": "https://cdn.shopify.com/...",
+        "{{benefit2label}}": "Joint Health",
+        "{{benefit2icon}}": "https://cdn.shopify.com/...",
+        "{{benefit3label}}": "Anti-Inflammatory",
+        "{{benefit3icon}}": "https://cdn.shopify.com/...",
+        "{{benefit4label}}": "",
+        "{{benefit4icon}}": "",
+        "{{benefit5label}}": "",
+        "{{benefit5icon}}": "",
+
+        // ===== PROMO =====
+        "{{pagetype}}": "Sales Page",
+        "{{channel}}": "SMS",
+        "{{salename}}": "Spring Sale",
+        "{{maxpercentoff}}": 48,
+        "{{maxdollaroff}}": 32,
+        "{{promoexpiration}}": "2025-04-20T23:59:59Z",
+        "{{moneybackimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/365_badge_mb.png?v=1754939951",
+
+        // ===== OFFER 1 =====
+        "{{o1label}}": "1 Bag",
+        "{{o1badge}}": "",
+        "{{o1quantity}}": 1,
+        "{{o1otpprice}}": 65,
+        "{{o1otppriceperserving}}": 1.16,
+        "{{o1otpdollaroff}}": 0,
+        "{{o1otppercentoff}}": 0,
+        "{{o1otpshipping}}": "FREE SHIPPING",
+        "{{o1otptotalretailprice}}": 65,
+        "{{o1otpproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_otp_1.webp?v=1775230338",
+        "{{o1otpcheckoutlink}}": "...",
+        "{{o1otpctatext}}": "Add To Cart",
+        "{{o1g1sku}}": "",
+        "{{o1g1quantity}}": "",
+        "{{o1g2sku}}": "",
+        "{{o1g2quantity}}": "",
+        "{{o1subprice}}": 60,
+        "{{o1subpriceperserving}}": 1.07,
+        "{{o1subdollaroff}}": 7.99,
+        "{{o1subpercentoff}}": 10,
+        "{{o1subshipping}}": "FREE SHIPPING",
+        "{{o1subtotalretailprice}}": 60,
+        "{{o1subfrequency}}": "every month",
+        "{{o1subproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_ss.png?v=1775230172",
+        "{{o1subcheckoutlink}}": "...",
+        "{{o1subctatext}}": "Add To Cart",
+        "{{o1subg1sku}}": "",
+        "{{o1subg1quantity}}": "",
+        "{{o1subg2sku}}": "",
+        "{{o1subg2quantity}}": "",
+
+        // ===== OFFER 2 =====
+        "{{o2label}}": "3 Bags",
+        "{{o2badge}}": "",
+        "{{o2quantity}}": 3,
+        "{{o2otpprice}}": 39,
+        "{{o2otppriceperserving}}": 0.87,
+        "{{o2otpdollaroff}}": 86.97,
+        "{{o2otppercentoff}}": 30,
+        "{{o2otpshipping}}": "FREE SHIPPING",
+        "{{o2otptotalretailprice}}": 113.97,
+        "{{o2otpproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill30s_Set_3.png?v=1775230172",
+        "{{o2otpcheckoutlink}}": "...",
+        "{{o2otpctatext}}": "Add To Cart",
+        "{{o2g1sku}}": "10-00045",
+        "{{o2g1quantity}}": 1,
+        "{{o2g2sku}}": "",
+        "{{o2g2quantity}}": "",
+        "{{o2subprice}}": 35,
+        "{{o2subpriceperserving}}": 0.78,
+        "{{o2subdollaroff}}": 98.97,
+        "{{o2subpercentoff}}": 30,
+        "{{o2subshipping}}": "FREE SHIPPING",
+        "{{o2subtotalretailprice}}": 105,
+        "{{o2subfrequency}}": "every 3 months",
+        "{{o2subproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_3_ss.png?v=1775230171",
+        "{{o2subcheckoutlink}}": "...",
+        "{{o2subctatext}}": "Add To Cart",
+        "{{o2subg1sku}}": "10-00045",
+        "{{o2subg1quantity}}": 1,
+        "{{o2subg2sku}}": "",
+        "{{o2subg2quantity}}": "",
+
+        // ===== OFFER 3 =====
+        "{{o3label}}": "6 Bags",
+        "{{o3badge}}": "MOST POPULAR",
+        "{{o3quantity}}": 6,
+        "{{o3otpprice}}": 32,
+        "{{o3otppriceperserving}}": 0.70,
+        "{{o3otpdollaroff}}": 215.94,
+        "{{o3otppercentoff}}": 30,
+        "{{o3otpshipping}}": "FREE SHIPPING",
+        "{{o3otptotalretailprice}}": 227.94,
+        "{{o3otpproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_6_otp.png?v=1775230172",
+        "{{o3otpcheckoutlink}}": "...",
+        "{{o3otpctatext}}": "Add To Cart",
+        "{{o3g1sku}}": "10-00045",
+        "{{o3g1quantity}}": 1,
+        "{{o3g2sku}}": "10-00019",
+        "{{o3g2quantity}}": 1,
+        "{{o3subprice}}": 28,
+        "{{o3subpriceperserving}}": 0.62,
+        "{{o3subdollaroff}}": 251.94,
+        "{{o3subpercentoff}}": 30,
+        "{{o3subshipping}}": "FREE SHIPPING",
+        "{{o3subtotalretailprice}}": 227.94,
+        "{{o3subfrequency}}": "every 6 months",
+        "{{o3subproductimage}}": "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_6_ss_1.png?v=1775230172",
+        "{{o3subcheckoutlink}}": "...",
+        "{{o3subctatext}}": "Add To Cart",
+        "{{o3subg1sku}}": "10-00045",
+        "{{o3subg1quantity}}": 1,
+        "{{o3subg2sku}}": "",
+        "{{o3subg2quantity}}": "",
+
+        // ===== OFFER 4 =====
+        "{{o4label}}": "",
+        "{{o4badge}}": "",
+        "{{o4quantity}}": "",
+        "{{o4otpprice}}": "",
+        "{{o4otppriceperserving}}": "",
+        "{{o4otpdollaroff}}": "",
+        "{{o4otppercentoff}}": "",
+        "{{o4otpshipping}}": "",
+        "{{o4otptotalretailprice}}": "",
+        "{{o4otpproductimage}}": "",
+        "{{o4otpcheckoutlink}}": "",
+        "{{o4otpctatext}}": "",
+        "{{o4g1sku}}": "",
+        "{{o4g1quantity}}": "",
+        "{{o4g2sku}}": "",
+        "{{o4g2quantity}}": "",
+        "{{o4subprice}}": "",
+        "{{o4subpriceperserving}}": "",
+        "{{o4subdollaroff}}": "",
+        "{{o4subpercentoff}}": "",
+        "{{o4subshipping}}": "",
+        "{{o4subtotalretailprice}}": "",
+        "{{o4subfrequency}}": "",
+        "{{o4subproductimage}}": "",
+        "{{o4subcheckoutlink}}": "",
+        "{{o4subctatext}}": "",
+        "{{o4subg1sku}}": "",
+        "{{o4subg1quantity}}": "",
+        "{{o4subg2sku}}": "",
+        "{{o4subg2quantity}}": "",
+    }
+    </script>
+
+</head>
+<body>      
+ 
+</body>
+    <script src="qa-script.js"></script>
+</html>
