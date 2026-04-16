@@ -184,7 +184,7 @@ async function runQA() {
   const leg_attVarId = leg_attBlock.match(/productVariantId:\s*['"]([^'"]+)['"]/i)?.[1] || null;
 
   // Legacy pass = SDK + both events fired
-  const leg_allPass = leg_hasKlaviyoSDK && leg_hasViewedSales && leg_hasViewedCO;
+  const leg_allPass = !!leg_prid && !!leg_cat && !!leg_subcat;
 
   const legacyRows = [
     subheading("Klaviyo"),
