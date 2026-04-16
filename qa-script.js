@@ -124,85 +124,240 @@ window.toggleModal = function () {
     if (isOpening) runQA();
 };
 
-// ========== QA ==========
+// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
+// Replaces the existing runQA() in qa-script.js
+// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
+
+// ========== UPDATED runQA() — DROP-IN REPLACEMENT ==========
+// Replaces the existing runQA() in qa-script.js
+// All other functions (displayTokens, displayNpData, toggleModal, helpers) remain unchanged.
+
 async function runQA() {
-    const container = document.querySelector(".modal-container");
-    container.innerHTML = `<p>Running checks...</p>`;
-    window.__page_id = "12345678" //Delete before upload
-    let page_data = {};
-    try { page_data = window.np_data?.promos[__page_id] || {}; console.log("Page ID:", window.__page_id, "NP Data:", window.np_data,"Page Data:", page_data) } catch (e) { console.log(e, "Error fetching page id") }
+  const container = document.querySelector(".modal-container");
+  container.innerHTML = `<p>Running checks...</p>`;
 
-    await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 500));
 
-    const scripts = [...document.scripts];
-    const inline = scripts.filter(s => !s.src).map(s => s.textContent || "").join(" ");
+  // ── Source detection ──────────────────────────────────────────────────────
+  const scripts = [...document.scripts];
+  const inline = scripts.filter(s => !s.src).map(s => s.textContent || "").join(" ");
 
-    let product = {};
-  try { product = window.np_data?.products[page_data.promoSku] || {}; console.log("Products:", product, "Page Data:", page_data)} catch (e) { console.log(e)}
+  // Legacy signals: raw klaviyo.push() pasted inline in the footer
+  const hasLegacyKlaviyoPush = inline.includes('klaviyo.push(["track"');
+  const hasLegacyViewedSales = inline.includes('"Viewed Sales Page"');
+  const hasLegacyViewedCO = inline.includes('"Viewed Checkout Page"');
 
-    // Checks
-    const hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
-    const hasViewedSales = inline.includes("Viewed Sales Page");
-    const hasViewedCheckout = inline.includes("Viewed Checkout Page");
-    const hasKlaviyoPayloadFn = inline.includes("loadKlaviyoPayload");
-    // const hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
-    // const hasAttentivePayload = inline.includes("loadAttentivePayload");
-    // const hasAttentiveCall = inline.includes("attentive.analytics.productView");
+  // New signals: loadKlaviyoPayload() CALLED (not just defined) in the footer
+  // The function is defined in the global header so its mere existence means nothing.
+  const hasNewFooterCall = inline.includes("loadKlaviyoPayload(");
+  const hasNewAttentiveCall = inline.includes("loadAttentivePayload(");
 
-    const imgs = [...document.images];
-    const others = {
-        MediaGo: scripts.some(s => /mediago\.io/i.test(s.src)) || typeof window._megoaa !== "undefined",
-        Reddit: scripts.some(s => /redditstatic\.com\/ads\/pixel\.js|events\.redditmedia\.com/i.test(s.src)) || typeof window.rdt !== "undefined",
-        LiveIntent: scripts.some(s => /liadm\.com/i.test(s.src)) || imgs.some(i => /px\.liadm\.com/i.test(i.src)) || typeof window.liQ !== "undefined",
-        Taboola: scripts.some(s => /cdn\.taboola\.com\/libtrc/i.test(s.src)) || typeof window._tfa !== "undefined",
-        iHeart: scripts.some(s => /arttrk\.com/i.test(s.src)) || imgs.some(i => /arttrk\.com\/pixel/i.test(i.src)),
-        Outbrain: scripts.some(s => /amplify\.outbrain\.com\/cp\/obtp\.js/i.test(s.src)) || typeof window.obApi !== "undefined",
-    };
+  // np_data presence = new schema loaded
+  const hasNpData = !!window.np_data;
 
-    // Klaviyo
-    const klaviyoHTML = `
-    <strong>KLAVIYO ABANDON SDK</strong><br><br>
-    ${block([
-        field("SDK", hasKlaviyoSDK ? "Found" : null),
-        field("loadKlaviyoPayload()", hasKlaviyoPayloadFn ? "Found" : null),
-        field("Viewed Sales Page", hasViewedSales ? "Found" : null),
-        field("Viewed Checkout Page", hasViewedCheckout ? "Found" : null),
-    ])}
-    ${product ? block([
-        field("Product", product.productName), //Comes from Product
-        field("Category", product.productCategory), //Comes from Product
-        field("Sub-Category", product.productCategorySub), //Comes from Product
-        field("Image", product.productImage ? `<img src="${product.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">` : null), //Comes from Product
-        field("Retail Price", product.retailPrice ? `${product.retailPrice} ${np_data.global.currency}` : null), //Comes from Product
-    ]) : block([`<div>${icon(false)} np_data.product not found</div>`])}
-  `;
+  // Page state
+  const isLegacy = hasLegacyKlaviyoPush && !hasNewFooterCall;
+  const isNew = !hasLegacyKlaviyoPush && hasNewFooterCall;
+  const isConflict = hasLegacyKlaviyoPush && hasNewFooterCall;
+  const isUnknown = !hasLegacyKlaviyoPush && !hasNewFooterCall;
 
-  //   // Attentive
-  //   const attentiveHTML = `
-  //   <strong>ATTENTIVE SDK</strong><br><br>
-  //   ${block([
-  //       field("SDK", hasAttentiveSDK ? "Found" : null),
-  //       field("loadAttentivePayload()", hasAttentivePayload ? "Found" : null),
-  //       field("productView() Call", hasAttentiveCall ? "Found" : null),
-  //   ])}
-  //   ${Object.keys(products).length
-  //     ? Object.values(products).map(p => block([
-  //               field("Product", p.productName),
-  //               field("Product ID", p.productId),
-  //               field("Variant ID", p.productVariantId),
-  //               field("Category", p.productCategory),
-  //               field("Price", p.retailPrice ? `${p.retailPrice.value} ${p.retailPrice.currency}` : null),
-  //           ])).join("")
-  //           : block([`<div>${icon(false)} np_data.global.products not found</div>`])
-  //       }
-  // `;
-    // Other scripts
-    const othersHTML = `
-    <strong>OTHER SCRIPTS (EXT)</strong><br><br>
-    ${block(Object.entries(others).map(([name, found]) => field(name, found ? "Found" : null)))}
-  `;
+  // ── Page data (new schema) ────────────────────────────────────────────────
+  let page_data = {};
+  let products = [];
+  try {
+    page_data = window.np_data?.promos?.[window.__page_id] || {};
+    products = (page_data.promoSku || []).map(sku => window.np_data?.products?.[sku]).filter(Boolean);
+  } catch (e) { console.log(e); }
 
-  container.innerHTML = klaviyoHTML + othersHTML;//+ attentiveHTML + othersHTML;
+  // ── Legacy product info (regex from inline pasted code) ──────────────────
+  const legacyProduct = inline.match(/const\s+prid\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  const legacyCategory = inline.match(/const\s+product_category\s*=\s*["']([^"']+)["']/)?.[1] || null;
+  const legacySubCat = inline.match(/const\s+product_category_sub\s*=\s*["']([^"']+)["']/)?.[1] || null;
+
+  // ── SDK checks (same for both worlds) ────────────────────────────────────
+  const hasKlaviyoSDK = scripts.some(s => s.src?.includes("klaviyo.com") && s.src.includes("TPg5j8"));
+  const hasAttentiveSDK = scripts.some(s => s.src?.includes("cdn.attn.tv/nativepath/dtag.js"));
+
+  // ── Other scripts ─────────────────────────────────────────────────────────
+  const imgs = [...document.images];
+  const others = {
+    MediaGo: scripts.some(s => /mediago\.io/i.test(s.src)) || typeof window._megoaa !== "undefined",
+    Reddit: scripts.some(s => /redditstatic\.com\/ads\/pixel\.js|events\.redditmedia\.com/i.test(s.src)) || typeof window.rdt !== "undefined",
+    LiveIntent: scripts.some(s => /liadm\.com/i.test(s.src)) || imgs.some(i => /px\.liadm\.com/i.test(i.src)) || typeof window.liQ !== "undefined",
+    Taboola: scripts.some(s => /cdn\.taboola\.com\/libtrc/i.test(s.src)) || typeof window._tfa !== "undefined",
+    iHeart: scripts.some(s => /arttrk\.com/i.test(s.src)) || imgs.some(i => /arttrk\.com\/pixel/i.test(i.src)),
+    Outbrain: scripts.some(s => /amplify\.outbrain\.com\/cp\/obtp\.js/i.test(s.src)) || typeof window.obApi !== "undefined",
+  };
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // STATUS BANNER
+  // ═════════════════════════════════════════════════════════════════════════
+  let bannerColor, bannerIcon, bannerTitle, bannerSub;
+
+  if (isConflict) {
+    bannerColor = "#ffeaea";
+    bannerIcon = "cancel";
+    bannerTitle = "CONFLICT — Old and new tracking code both detected";
+    bannerSub = "This page may fire Klaviyo events twice.";
+  } else if (isNew) {
+    bannerColor = "#e6f9ee";
+    bannerIcon = "check_circle";
+    bannerTitle = "New tracking code";
+    bannerSub = hasNpData ? "" : "np_data not found.";
+  } else if (isLegacy) {
+    bannerColor = "#fff8e1";
+    bannerIcon = "check_circle";
+    bannerTitle = "Legacy tracking code";
+    bannerSub = "";
+  } else {
+    bannerColor = "#ffeaea";
+    bannerIcon = "cancel";
+    bannerTitle = "No tracking code detected";
+    bannerSub = "";
+  }
+
+  const bannerHTML = `
+        <div style="background:${bannerColor};border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:flex-start;">
+            <span class="material-symbols-outlined" style="font-size:22px;color:${isConflict || isUnknown ? '#db0100' : isNew ? '#00a200' : '#b07d00'};flex-shrink:0;margin-top:1px;">${bannerIcon}</span>
+            <div>
+                <div style="font-weight:600;font-size:14px;">${bannerTitle}</div>
+                ${bannerSub ? `<div style="font-size:12px;color:#555;margin-top:3px;">${bannerSub}</div>` : ""}
+            </div>
+        </div>`;
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // KLAVIYO SECTION
+  // ═════════════════════════════════════════════════════════════════════════
+  let klaviyoHTML = `<strong>KLAVIYO</strong><br><br>`;
+
+  // SDK is always the same check
+  klaviyoHTML += block([field("Klaviyo is loaded", hasKlaviyoSDK ? "Yes" : null)]);
+
+  if (isLegacy || isConflict) {
+    // ── Legacy sub-block ──
+    const legacyLabel = isConflict
+      ? `<div style="font-size:11px;font-weight:600;color:#b07d00;margin-bottom:6px;">OLD CODE (pasted inline)</div>`
+      : "";
+    klaviyoHTML += block([
+      legacyLabel,
+      field("Sales page tracking is set up", hasLegacyViewedSales ? "Yes" : null),
+      field("Checkout button tracking is set up", hasLegacyViewedCO ? "Yes" : null),
+      `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
+      field("Product", legacyProduct || null),
+      field("Category", legacyCategory || null),
+      field("Sub-Category", legacySubCat || null),
+    ]);
+  }
+
+  if (isNew || isConflict) {
+    // ── New schema sub-block ──
+    const newLabel = isConflict
+      ? `<div style="font-size:11px;font-weight:600;color:#00622a;margin-bottom:6px;">NEW CODE (function-based)</div>`
+      : "";
+
+    if (products.length > 0) {
+      const p = products[0];
+      klaviyoHTML += block([
+        newLabel,
+        field("Sales page tracking is set up", hasNewFooterCall ? "Yes" : null),
+        field("Checkout button tracking is set up", hasNewFooterCall ? "Yes" : null),
+        `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
+        field("Product", p.productName),
+        field("Category", p.productCategory),
+        field("Sub-Category", p.productCategorySub),
+        field("Image", p.productImage
+          ? `<img src="${p.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">`
+          : null),
+        field("Price", p.retailPrice ? `$${p.retailPrice} ${window.np_data?.global?.currency || ""}` : null),
+      ]);
+    } else {
+      klaviyoHTML += block([
+        newLabel,
+        `<div>${icon(false)} Product info not found in np_data.</div>`,
+      ]);
+    }
+  }
+
+  if (isUnknown) {
+    klaviyoHTML += block([
+      `<div>${icon(false)} No Klaviyo tracking found on this page.</div>`,
+    ]);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // ATTENTIVE SECTION
+  // ═════════════════════════════════════════════════════════════════════════
+  let attentiveHTML = `<strong>ATTENTIVE</strong><br><br>`;
+
+  // Legacy attentive: raw productView() call pasted inline
+  const hasLegacyAttentive = inline.includes("attentive.analytics.productView(");
+
+  // Extract legacy attentive product info
+  const attBlock = inline.match(/attentive\.analytics\.productView\(\s*\{[\s\S]*?\}\s*\)/i)?.[0] || "";
+  const attLegacyName = attBlock.match(/name:\s*['"]([^'"]{2,})['"]/i)?.[1] || null;
+  const attLegacyCat = attBlock.match(/category:\s*['"]([^'"]+)['"]/i)?.[1] || null;
+  const attLegacyPrice = attBlock.match(/value:\s*['"]?([\d.]+)['"]?/i)?.[1] || null;
+  const attLegacyCurr = attBlock.match(/currency:\s*['"]([A-Z]{3})['"]/i)?.[1] || null;
+
+  attentiveHTML += block([field("Attentive is loaded", hasAttentiveSDK ? "Yes" : null)]);
+
+  if (hasLegacyAttentive) {
+    const attLegacyLabel = hasNewAttentiveCall
+      ? `<div style="font-size:11px;font-weight:600;color:#b07d00;margin-bottom:6px;">OLD CODE (pasted inline)</div>`
+      : "";
+    attentiveHTML += block([
+      attLegacyLabel,
+      field("Product view is set up", "Yes"),
+      `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
+      field("Product", attLegacyName),
+      field("Category", attLegacyCat),
+      field("Price", attLegacyPrice && attLegacyCurr ? `$${attLegacyPrice} ${attLegacyCurr}` : attLegacyPrice),
+    ]);
+  }
+
+  if (hasNewAttentiveCall) {
+    const attNewLabel = hasLegacyAttentive
+      ? `<div style="font-size:11px;font-weight:600;color:#00622a;margin-bottom:6px;">NEW CODE (function-based)</div>`
+      : "";
+    if (products.length > 0) {
+      const p = products[0];
+      attentiveHTML += block([
+        attNewLabel,
+        field("Product view is set up", "Yes"),
+        `<hr style="border:none;border-top:1px solid #cce4f7;margin:8px 0;">`,
+        field("Product", p.productName),
+        field("Category", p.productCategory),
+        field("Price", p.retailPrice ? `$${p.retailPrice} ${window.np_data?.global?.currency || ""}` : null),
+        field("Image", p.productImage
+          ? `<img src="${p.productImage}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;vertical-align:middle;">`
+          : null),
+      ]);
+    } else {
+      attentiveHTML += block([
+        attNewLabel,
+        `<div>${icon(false)} Product info not found in np_data.</div>`,
+      ]);
+    }
+  }
+
+  if (!hasAttentiveSDK && !hasLegacyAttentive && !hasNewAttentiveCall) {
+    attentiveHTML += block([
+      `<div>${icon(false)} Attentive not detected.</div>`
+    ]);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // OTHER SCRIPTS
+  // ═════════════════════════════════════════════════════════════════════════
+  const othersHTML = `
+        <strong>OTHER SCRIPTS</strong><br><br>
+        ${block(Object.entries(others).map(([name, found]) => field(name, found ? "Found" : null)))}
+    `;
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═════════════════════════════════════════════════════════════════════════
+  container.innerHTML = bannerHTML + klaviyoHTML + attentiveHTML + othersHTML;
 }
 
 window.displayTokens = async function () {

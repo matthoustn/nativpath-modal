@@ -27,8 +27,8 @@
             // Offer-level productSku references back to these keys
             "10-00019": {
                 productName: "Krill", // Display name of the product
-                unitSingular: "Bag", // Singular unit label e.g. "Bag", "Bottle", "Jar"
-                unitPlural: "Bags", // Plural unit label e.g. "Bags", "Bottles", "Jars"
+                unitSingular: "Bottle", // Singular unit label e.g. "Bag", "Bottle", "Jar"
+                unitPlural: "Bottles", // Plural unit label e.g. "Bags", "Bottles", "Jars"
                 servingSize: "2 scoops", // Serving size as labeled on the product (freeform string, varies by product)
                 servingsPerContainer: 56, // Total number of servings per container
                 currentStock: 70326, // Current inventory count, used for stock urgency messaging
@@ -37,7 +37,6 @@
                 productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/Krill_1_otp_1.webp?v=1775230338", // Default product image; individual offers may override this with quantity-specific images
                 productCategory: "supplements", // Top-level category, used for Klaviyo and analytics
                 productCategorySub: "krill", // Sub-category for more specific segmentation
-                productCategoryAcq: "krill", // Acquisition-specific category label used by the ACQ department
                 retailPrice: 37.99, // Full retail price for a single unit; used for strikethrough pricing and savings calculations
                 totalReviews: 50000, // Total number of reviews displayed in social proof sections
                 reviewRating: 4.5, // Average review rating out of 5
@@ -57,6 +56,38 @@
                 allergens: "Crustacean Shellfish (Krill).", // Allergen warning as listed on the label
                 containsNoAdded: "Milk, tree nuts, wheat, peanuts, or soy. Made on equipment that also processes milk, eggs, fish, tree nuts, and soy.", // "Contains no added" disclaimer as listed on the label
                 howToUse: "For adults, take one or two (1-2) softgels daily, preferably with a meal. (If taking for health maintenance, take 1 softgel daily. If taking for relief from specific health issue take 2 softgels daily.)" // Usage directions as listed on the label
+            }, 
+            "10-00075": {
+                productName: "Native Synbiotic", // Display name of the product
+                unitSingular: "Bottle", // Singular unit label e.g. "Bag", "Bottle", "Jar"
+                unitPlural: "Bottles", // Plural unit label e.g. "Bags", "Bottles", "Jars"
+                servingSize: "2 capsules", // Serving size as labeled on the product (freeform string, varies by product)
+                servingsPerContainer: 60, // Total number of servings per container
+                currentStock: 22086, // Current inventory count, used for stock urgency messaging
+                productId: "43835357429897", // Shopify product ID — kept as string to avoid integer overflow
+                productVariantId: "43835357429897", // Shopify variant ID — kept as string to avoid integer overflow
+                productImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/OTP-Synbiotic-1.png?v=1772053802", // Default product image; individual offers may override this with quantity-specific images
+                productCategory: "supplements", // Top-level category, used for Klaviyo and analytics
+                productCategorySub: "", // Sub-category for more specific segmentation
+                retailPrice: 50.00, // Full retail price for a single unit; used for strikethrough pricing and savings calculations
+                totalReviews: 50000, // Total number of reviews displayed in social proof sections
+                reviewRating: 5, // Average review rating out of 5
+                productDescription: "", // Short product description used in hero or product detail sections
+                format: "softgel", // Physical format of the product e.g. "softgel", "powder", "gummy", "capsule", "liquid"
+                benefits: [
+                    // Array of benefit objects; each benefit has a label and icon
+                    // Kept as objects rather than plain strings so each benefit can be tokenized independently (label + icon)
+                    { label: "Heart Health", icon: "https://cdn.shopify.com/..." },
+                    { label: "Joint Health", icon: "https://cdn.shopify.com/..." },
+                    { label: "Anti-Inflammatory", icon: "https://cdn.shopify.com/..." }
+                ],
+                ingredients: "Tributyrin (as Corebiome™), Inulin (from Chicory Root), Baobab (Adansonia Digitata) Fruit Pulp Powder and Acacia (Vachellia Seyal) Gum, Blueberry (Vaccinium Cyanococcus) Extract (10% Proanthocyanin), Probiotic Blend (Lactobacillus acidophilus, Bifidobacterium lactis, Bifidobacterium longum, Bifidobacterium breve).", // Active/primary ingredients as listed on the label
+                otherIngredients: "Capsule (Hypromellose), Rice Flour, L-Leucine, Bamboo Shoot Extract.", // Inactive/other ingredients as listed on the label
+                amountSold: "", // Total units sold, used for social proof messaging e.g. "Over 1M sold"
+                attribution: "", // Attribution or disclaimer text required on page e.g. regulatory or legal copy
+                allergens: "None.", // Allergen warning as listed on the label
+                containsNoAdded: "Milk, shellfish, wheat, peanuts, or soy. Made on equipment that processes milk, eggs, fish, tree nuts, & soy.", // "Contains no added" disclaimer as listed on the label
+                howToUse: "Take 2 capsules daily. Take immediately before or 1 hour after eating for optimal absorption." // Usage directions as listed on the label
             },
             "10-00045": {
                 // Non-supplement product — only has fields relevant to a physical good
@@ -78,7 +109,7 @@
                 maxPercentOff: 48, // Maximum percent off across all offers — used for headline/hero marketing copy only, not offer-level discounts
                 maxDollarOff: 32, // Maximum dollar off across all offers — used for headline/hero marketing copy only, not offer-level discounts
                 promoExpiration: "2025-04-20T23:59:59Z", // ISO 8601 expiration datetime for countdown timers; use timerDuration instead for evergreen/repeating timers
-                promoSku: "10-00019", // References np_data.products key; may differ from sub to support variant-level differences
+                promoSku: ["10-00019", "10-00075"], // References np_data.products key; may differ from sub to support variant-level differences
                 moneyBackImage: "https://cdn.shopify.com/s/files/1/0014/0158/5725/files/365_badge_mb.png?v=1754939951", // Money-back guarantee badge image
                 offers: [
                     // Array of offer objects, each representing a quantity tier
