@@ -311,26 +311,38 @@ window.displayTokens = async function () {
     const container = document.querySelector(".modal-container");
     if (!window.tokenList) return;
 
-    const render = (filter = "") => {
+    const tokenPanel = (entries) => `
+            <div style="border:1.5px solid #004175;border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div style="background:#004175;padding:8px 14px;display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;color:white;">check_circle</span>
+                    <span style="color:white;font-weight:600;font-size:13px;letter-spacing:0.03em;">TOKENS</span>
+                </div>
+                <div style="padding:12px 14px;">
+                    <input id="token-search" type="text" placeholder="Search tokens..." value="${tokenFilter}"
+                        style="width:100%;padding:8px;margin-bottom:10px;border-radius:8px;border:1px solid #004175;box-sizing:border-box;font-size:14px;">
+                    <div id="token-results">${entries}</div>
+                </div>
+            </div>`;
+
+    const renderRows = (filter = "") => {
       const entries = Object.entries(tokenList).filter(([key, value]) =>
         key.toLowerCase().includes(filter.toLowerCase()) ||
         String(value).toLowerCase().includes(filter.toLowerCase())
       );
-      return block(
-        entries.map(([key, value]) => value ? row([column(key), column(value)]) : null).filter(Boolean)
-      );
+      return entries.map(([key, value]) => {
+        if (!value) return "";
+        return `<div class="row" style="padding:4px 0;border-bottom:1px solid #cce4f7;">
+                    <div class="column" style="font-weight:600;font-size:13px;">${key}</div>
+                    <div class="column" style="font-size:13px;color:#333;">${value}</div>
+                </div>`;
+      }).join("");
     };
 
-    container.innerHTML = `
-            <input id="token-search" type="text" placeholder="Search tokens..." value="${tokenFilter}"
-                style="width:100%; padding:8px; margin-bottom:10px; border-radius:8px; border:1px solid #004175; box-sizing:border-box; font-size:14px;">
-            <div id="token-results"></div>`;
-
-    document.getElementById("token-results").innerHTML = render(tokenFilter);
+    container.innerHTML = tokenPanel(renderRows(tokenFilter));
 
     document.getElementById("token-search").addEventListener("input", (e) => {
       tokenFilter = e.target.value;
-      document.getElementById("token-results").innerHTML = render(tokenFilter);
+      document.getElementById("token-results").innerHTML = renderRows(tokenFilter);
     });
 
     document.getElementById("token-results").addEventListener("click", (e) => {
@@ -356,24 +368,38 @@ window.displayTokens = async function () {
 async function displayNpData() {
   const container = document.querySelector(".modal-container");
   if (!window.np_data) {
-    container.innerHTML = `<p>np_data not found</p>`;
+    container.innerHTML = `
+            <div style="border:1.5px solid #8b0000;border-radius:12px;overflow:hidden;">
+                <div style="background:#8b0000;padding:8px 14px;display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;color:white;">cancel</span>
+                    <span style="color:white;font-weight:600;font-size:13px;letter-spacing:0.03em;">NP_DATA</span>
+                </div>
+                <div style="padding:12px 14px;font-size:13px;">np_data not found</div>
+            </div>`;
     return;
   }
 
-  const renderSection = (label, data) => `
-        <strong>${label}</strong><br><br>
-        ${block(
-    Object.entries(data).map(([key, value]) =>
-      row([column(`<strong>${key}</strong>`), column(
-        typeof value === "object" && value !== null
-          ? `<pre style="margin:0; font-size:11px; white-space:pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`
-          : value
-      )])
-    )
-  )}`;
+  const npPanel = (title, rows) => `
+        <div style="border:1.5px solid #004175;border-radius:12px;margin-bottom:16px;overflow:hidden;">
+            <div style="background:#004175;padding:8px 14px;display:flex;align-items:center;gap:8px;">
+                <span class="material-symbols-outlined" style="font-size:18px;color:white;">check_circle</span>
+                <span style="color:white;font-weight:600;font-size:13px;letter-spacing:0.03em;">${title}</span>
+            </div>
+            <div style="padding:12px 14px;">${rows}</div>
+        </div>`;
+
+  const renderData = (data) => Object.entries(data).map(([key, value]) => `
+        <div style="display:flex;padding:4px 0;border-bottom:1px solid #cce4f7;gap:8px;">
+            <div style="flex-basis:40%;font-weight:600;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${key}</div>
+            <div style="flex-basis:60%;font-size:13px;color:#333;">
+                ${typeof value === "object" && value !== null
+      ? `<pre style="margin:0;font-size:11px;white-space:pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`
+      : value}
+            </div>
+        </div>`).join("");
 
   container.innerHTML =
-    renderSection("GLOBAL", np_data.global) +
-    renderSection("PRODUCTS", np_data.products) +
-    renderSection("PROMOS", np_data.promos);
+    npPanel("GLOBAL", renderData(np_data.global)) +
+    npPanel("PRODUCTS", renderData(np_data.products)) +
+    npPanel("PROMOS", renderData(np_data.promos));
 }
